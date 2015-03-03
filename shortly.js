@@ -15,6 +15,10 @@ var app = express();
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
+
+// app.use(express.cookieParser());
+// app.use(express.session({secret:'wendycoin'}));
+
 app.use(partials());
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
@@ -78,6 +82,10 @@ app.post('/links',
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/logout', function(req,res) {
+  res.render('login');
+});
+
 app.get('/login',
   function(req,res){
     res.render('login');
@@ -129,14 +137,15 @@ app.post('/login',
       util.checkPassword(req.body.password, found.attributes.password, function(isCorrect){
 
         if (isCorrect) {
-          res.send(200, 'yayy! youre in!');
+          // req.session.user = req.body.username;
+          res.render('index');
         } else {
-          res.send(200, 'bad password!');
+          res.redirect(401, 'login');
         }
       });
     } else {
           //reject
-          res.send(200, 'user doesnt exist');
+          res.redirect(400, 'login');
         }
       });
 });
