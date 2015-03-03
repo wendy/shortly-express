@@ -24,75 +24,132 @@ app.use(express.static(__dirname + '/public'));
 
 
 app.get('/',
-function(req, res) {
-  res.render('index');
-});
-
-// start
-app.get('/login',
-function(req,res){
-  res.render('login');
-});
-
-app.get('/signup',
-function(req,res){
-  res.render('signup');
-});
-// end
+  function(req, res) {
+    res.render('login');
+  });
 
 app.get('/create',
-function(req, res) {
-  res.render('index');
-});
+  function(req, res) {
+    res.render('login');
+  });
 
 app.get('/links',
-function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
+  function(req, res) {
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    });
   });
-});
 
 app.post('/links',
-function(req, res) {
-  var uri = req.body.url;
+  function(req, res) {
+    var uri = req.body.url;
 
-  if (!util.isValidUrl(uri)) {
-    console.log('Not a valid url: ', uri);
-    return res.send(404);
-  }
-
-  new Link({ url: uri }).fetch().then(function(found) {
-    if (found) {
-      res.send(200, found.attributes);
-    } else {
-      util.getUrlTitle(uri, function(err, title) {
-        if (err) {
-          console.log('Error reading URL heading: ', err);
-          return res.send(404);
-        }
-
-        var link = new Link({
-          url: uri,
-          title: title,
-          base_url: req.headers.origin
-        });
-
-        link.save().then(function(newLink) {
-          Links.add(newLink);
-          res.send(200, newLink);
-        });
-      });
+    if (!util.isValidUrl(uri)) {
+      console.log('Not a valid url: ', uri);
+      return res.send(404);
     }
+
+    new Link({ url: uri }).fetch().then(function(found) {
+      if (found) {
+        res.send(200, found.attributes);
+      } else {
+        util.getUrlTitle(uri, function(err, title) {
+          if (err) {
+            console.log('Error reading URL heading: ', err);
+            return res.send(404);
+          }
+
+          var link = new Link({
+            url: uri,
+            title: title,
+            base_url: req.headers.origin
+          });
+
+          link.save().then(function(newLink) {
+            Links.add(newLink);
+            res.send(200, newLink);
+          });
+        });
+      }
+    });
   });
-});
 
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/login',
+  function(req,res){
+    res.render('login');
+  });
 
+app.get('/signup',
+  function(req,res){
+    res.render('signup');
+  });
 
-/************************************************************/
+app.post('/signup',
+  function(req, res) {
+    console.log(req.body.username);
+
+  // TODO: check validity of something?
+
+    new User({username: req.body.username})
+    .fetch().then(function(found) {
+      if (found) {
+        console.log(found.attributes.password);
+        res.send(200, 'user already exists');
+      } else {
+        util.hashPassword(req.body.password, function(hash){
+          var user = new User({
+            username: req.body.username,
+            password: hash
+          });
+          user.save().then(function(newUser) {
+            Users.add(newUser);
+            res.render('index');
+          });
+        });
+      }
+    });
+  });
+
+app.post('/login',
+  function(req, res) {
+    console.log(req.body.username);
+
+  // TODO: check validity of something?
+
+  new User({username: req.body.username})
+  .fetch().then(function(found) {
+    console.log(found);
+    if (found) {
+      console.log(req.body.password);
+      console.log(found.attributes.password);
+      util.checkPassword(req.body.password, found.attributes.password, function(isCorrect){
+
+        if (isCorrect) {
+          res.send(200, 'yayy! youre in!');
+        } else {
+          res.send(200, 'bad password!');
+        }
+      });
+    } else {
+          //reject
+          res.send(200, 'user doesnt exist');
+        }
+      });
+});
+
+          // if( req.body.password === found.attributes.password ){
+          //   res.render('index');
+          //   // res.send(200, 'yayy! youre in!');
+          // } else {
+          //   res.send(200, 'bad password!')
+          // }
+          // //enter
+
+          /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
 // If the short-code doesn't exist, send the user to '/'
@@ -109,12 +166,12 @@ app.get('/*', function(req, res) {
 
       click.save().then(function() {
         db.knex('urls')
-          .where('code', '=', link.get('code'))
-          .update({
-            visits: link.get('visits') + 1,
-          }).then(function() {
-            return res.redirect(link.get('url'));
-          });
+        .where('code', '=', link.get('code'))
+        .update({
+          visits: link.get('visits') + 1,
+        }).then(function() {
+          return res.redirect(link.get('url'));
+        });
       });
     }
   });
