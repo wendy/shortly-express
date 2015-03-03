@@ -2,6 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser');
+var session = require('cookie-session');
 
 
 var db = require('./app/config');
@@ -24,17 +26,28 @@ app.use(partials());
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser('cutecat'));
+app.use(session({secret: "meow"}));
+
 app.use(express.static(__dirname + '/public'));
 
 
 app.get('/',
   function(req, res) {
-    res.render('login');
+    if (req.session.name) {
+      res.render('index');
+    } else {
+      res.render('login');
+    }
   });
 
 app.get('/create',
   function(req, res) {
-    res.render('login');
+    if (req.session.name) {
+      res.render('index');
+    } else {
+      res.render('login');
+    }
   });
 
 app.get('/links',
@@ -83,12 +96,17 @@ app.post('/links',
 /************************************************************/
 
 app.get('/logout', function(req,res) {
+  req.session = null;
   res.render('login');
 });
 
 app.get('/login',
   function(req,res){
-    res.render('login');
+    if (req.session.name) {
+      res.render('index');
+    } else {
+      res.render('login');
+    }
   });
 
 app.get('/signup',
@@ -98,46 +116,46 @@ app.get('/signup',
 
 app.post('/signup',
   function(req, res) {
-    console.log(req.body.username);
-
-  // TODO: check validity of something?
-
-    new User({username: req.body.username})
-    .fetch().then(function(found) {
-      if (found) {
-        console.log(found.attributes.password);
-        res.send(200, 'user already exists');
-      } else {
-        util.hashPassword(req.body.password, function(hash){
-          var user = new User({
-            username: req.body.username,
-            password: hash
-          });
-          user.save().then(function(newUser) {
-            Users.add(newUser);
-            res.render('index');
-          });
-        });
-      }
-    });
-  });
-
-app.post('/login',
-  function(req, res) {
-    console.log(req.body.username);
 
   // TODO: check validity of something?
 
   new User({username: req.body.username})
   .fetch().then(function(found) {
-    console.log(found);
     if (found) {
-      console.log(req.body.password);
-      console.log(found.attributes.password);
+      res.send(200, 'user already exists');
+    } else {
+      util.hashPassword(req.body.password, function(hash){
+        var user = new User({
+          username: req.body.username,
+          password: hash
+        });
+        user.save().then(function(newUser) {
+          Users.add(newUser);
+            req.session.name = newUser.username; // set name
+            console.log(req.session.name);
+            res.render('index');
+          });
+      });
+    }
+  });
+});
+
+app.post('/login',
+  function(req, res) {
+
+  // TODO: check validity of something?
+  //
+
+  new User({username: req.body.username})
+  .fetch().then(function(found) {
+    if (found) {
+
       util.checkPassword(req.body.password, found.attributes.password, function(isCorrect){
 
         if (isCorrect) {
           // req.session.user = req.body.username;
+          req.session.name = req.body.username;
+          console.log(req.session.name);
           res.render('index');
         } else {
           res.redirect(401, 'login');
